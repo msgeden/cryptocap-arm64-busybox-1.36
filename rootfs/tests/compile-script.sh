@@ -17,7 +17,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Step 2: Generate the object dump of the compiled file
-aarch64-linux-gnu-objdump -d ${FILE_NAME} > ${FILE_NAME}.objdmp
+aarch64-linux-gnu-objdump -d ${FILE_NAME}.exe > ${FILE_NAME}.objdmp
 if [ $? -ne 0 ]; then
   echo "Object dump failed"
   exit 1
