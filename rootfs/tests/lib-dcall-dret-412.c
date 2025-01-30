@@ -24,7 +24,7 @@ void lib1_add(void)
     //printf("Lib1: Lib1 is called\n");
    
     //lib1_operand=50;
-    int sum=48;
+    //int sum=48;
     // // int app_operand1=0;
     // int app_operand2=0;
     
@@ -34,7 +34,7 @@ void lib1_add(void)
     //dret();
     asm volatile(
     //     //"mov x0, %0\n\t"          // Load sum into x0
-         //"mov x0, #42\n\t"      
+         "mov x0, #42\n\t"      
          ".word 0x3e00000\n\t"      // dret
     //     //:
     //     //: "r"(sum) // Input operands
@@ -67,7 +67,7 @@ int main(void)
 
         // Execute the Caller-Data Owner program
         dup2(pipe_fd[0], STDIN_FILENO);  // Redirect pipe read end to stdin
-        execl("./app-dcall-412.exe", "app-dcall-412.exe", NULL);
+        execl("./app-dcall-dret-412.exe", "app-dcall-dret-412.exe", NULL);
         // If execl fails
         perror("execl");
         exit(EXIT_FAILURE);

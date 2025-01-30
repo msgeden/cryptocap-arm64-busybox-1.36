@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #define SYS_dgrant 292  // Adjust syscall numbers as needed
+#define BUFFER_SIZE 100
 
 
 typedef struct cc_dcap {
@@ -31,7 +32,133 @@ typedef struct cc_dcapcl {
 
 } cc_dcapcl;
 
-cc_dcap cc_create_cap_struct(void* base, size_t size, bool write_flag, uint64_t PT){
+
+
+static void cc_print_cap(cc_dcap cap) {
+    uint64_t perms=(cap.perms_base&0xFFFF000000000000)>>48;
+    uint64_t base=cap.perms_base&0x0000FFFFFFFFFFFF;
+    printf("cap.perms=0x%lx, .base=0x%lx, .offset=%d, .size=%d, .PT=0x%lx, .MAC=0x%lx\n", perms, base, cap.offset, cap.size, cap.PT, cap.MAC);
+}
+
+
+static uint64_t cc_get_PT() {
+    uint64_t ttbr0_el1=0xDEADBEEF;
+    asm volatile(".word 0x03300000" : "=r"(ttbr0_el1));  //readttbr x0
+    return ttbr0_el1;
+}
+
+
+// static cc_dcap cc_store_cap_from_creg0(){
+//     cc_dcap cap;
+//     asm volatile (
+//          ".word 0x02f00409\n\t"      // cmanip cr0[0]/perms_base, R, x9
+//          "mov %0, x9\n\t"
+//          : "=r" (cap.perms_base)
+//          : 
+//          : "x9","memory" // clobber list 
+//     );
+
+//     asm volatile (
+//          ".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
+//          "mov %0, x9\n\t"
+//          : "=r" (cap.offset)
+//          : 
+//          : "x9","memory" // clobber list 
+//     );
+
+//     asm volatile (
+//          ".word 0x02f01409\n\t"      // cmanip cr0[2]/size, R, x9
+//          "mov %0, x9\n\t"
+//          : "=r" (cap.size)
+//          : 
+//          : "x9","memory" // clobber list 
+//     );
+
+//     asm volatile (
+//          ".word 0x02f01c09\n\t"      // cmanip cr0[3]/PT, R, x9
+//          "mov %0, x9\n\t"
+//          : "=r" (cap.PT)
+//          : 
+//          : "x9","memory" // clobber list 
+//     );
+    
+//     asm volatile (
+//          ".word 0x02f02409\n\t"      // cmanip cr0[4]/MAC, R, x9
+//          "mov %0, x9\n\t"
+//          : "=r" (cap.MAC)
+//          : 
+//          : "x9","memory" // clobber list 
+//     );
+//     return cap;
+// }
+
+// static void cc_load_cap_to_creg0(cc_dcap cap){
+
+//     asm volatile (
+//          "mov x9, %0\n\t"
+//          ".word 0x02f00009\n\t"      // cmanip cr0[0]/perms_base, W, x9
+//          :   
+//          : "r" (cap.perms_base)
+//          : "x9" // clobber list 
+//     );
+
+//     asm volatile (
+//          "mov x9, %0\n\t"
+//          ".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
+//          :   
+//          : "r" (cap.offset)
+//          : "x9" // clobber list 
+//     );
+
+//     asm volatile (
+//          "mov x9, %0\n\t"
+//          ".word 0x02f01009\n\t"      // cmanip cr0[2]/size, W, x9
+//          :   
+//          : "r" (cap.size)
+//          : "x9" // clobber list 
+//     );
+
+//     asm volatile (
+//          "mov x9, %0\n\t"
+//          ".word 0x02f01809\n\t"      // cmanip cr0[3]/PT, W, x9
+//          :   
+//          : "r" (cap.PT)
+//          : "x9" // clobber list 
+//     );
+
+//     asm volatile (
+//          "mov x9, %0\n\t"
+//          ".word 0x02f02009\n\t"      // cmanip cr0[4]/MAC, W, x9
+//          :   
+//          : "r" (cap.MAC)
+//          : "x9" // clobber list 
+//     );
+// }
+
+
+static void cc_load_ver_cap_to_creg0(cc_dcap* cap){
+    asm volatile (
+         "mov x9, %0\n\t"
+         ".word 0x02000009\n\t"      // ldc cr0, [x9]
+         :   
+         : "r" (cap)
+         : "x9" // clobber list 
+    );
+}
+
+static void cc_store_cap_from_creg0(cc_dcap* cap){
+
+    asm volatile (
+         "mov x9, %0\n\t"
+         ".word 0x02100009\n\t"      // stc cr0, [x9]
+         :   
+         : "r" (cap)
+         : "x9" // clobber list 
+    );
+}
+
+
+static cc_dcap cc_create_struct(void* base, size_t size, bool write_flag, uint64_t PT){
     cc_dcap cap;
     cap.perms_base = 0xFFFF000000000000|(uint64_t)base;
     cap.offset = 0;
@@ -41,100 +168,56 @@ cc_dcap cc_create_cap_struct(void* base, size_t size, bool write_flag, uint64_t 
     return cap;
 }    
 
-static cc_dcap cc_store_cap_from_creg0(){
+static cc_dcap cc_create_signed_cap_on_creg0(void* base, size_t size, bool write_flag){
     cc_dcap cap;
+    uint64_t perms_base = 0xFFFF000000000000 | (uint64_t)base;
+    uint64_t offset=0;
+    uint64_t offset_size = ((uint64_t)size << 32) | (uint64_t)offset;
     asm volatile (
-         ".word 0x02f00409\n\t"      // cmanip cr0[0]/perms_base, R, x9
-         "mov %0, x9\n\t"
-         : "=r" (cap.perms_base)
-         : 
-         : "x9","memory" // clobber list 
+        "mov x9, %0\n\t" // mov perms_base to x9
+        "mov x10, %1\n\t" // mov offset+size to x10
+        ".word 0x0340012a\n\t"  //ccreate cr0, x9, x10  
+        : 
+        : "r" (perms_base), "r" (offset_size)
+        : "x9", "x10"
     );
-
-    asm volatile (
-         ".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
-         "mov %0, x9\n\t"
-         : "=r" (cap.offset)
-         : 
-         : "x9","memory" // clobber list 
-    );
-
-    asm volatile (
-         ".word 0x02f01409\n\t"      // cmanip cr0[2]/size, R, x9
-         "mov %0, x9\n\t"
-         : "=r" (cap.size)
-         : 
-         : "x9","memory" // clobber list 
-    );
-
-    asm volatile (
-         ".word 0x02f01c09\n\t"      // cmanip cr0[3]/PT, R, x9
-         "mov %0, x9\n\t"
-         : "=r" (cap.PT)
-         : 
-         : "x9","memory" // clobber list 
-    );
-    
-    asm volatile (
-         ".word 0x02f02409\n\t"      // cmanip cr0[4]/MAC, R, x9
-         "mov %0, x9\n\t"
-         : "=r" (cap.MAC)
-         : 
-         : "x9","memory" // clobber list 
-    );
+    cc_store_cap_from_creg0(&cap);
     return cap;
-}
+}    
 
-void cc_load_cap_to_creg0(cc_dcap cap){
-
-    asm volatile (
-         "mov x9, %0\n\t"
-         ".word 0x02f00009\n\t"      // cmanip cr0[0]/perms_base, W, x9
-         :   
-         : "r" (cap.perms_base)
-         : "x9" // clobber list 
-    );
-
-    asm volatile (
-         "mov x9, %0\n\t"
-         ".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
-         :   
-         : "r" (cap.offset)
-         : "x9" // clobber list 
-    );
-
-    asm volatile (
-         "mov x9, %0\n\t"
-         ".word 0x02f01009\n\t"      // cmanip cr0[2]/size, W, x9
-         :   
-         : "r" (cap.size)
-         : "x9" // clobber list 
-    );
-
-    asm volatile (
-         "mov x9, %0\n\t"
-         ".word 0x02f01809\n\t"      // cmanip cr0[3]/PT, W, x9
-         :   
-         : "r" (cap.PT)
-         : "x9" // clobber list 
-    );
-
-    asm volatile (
-         "mov x9, %0\n\t"
-         ".word 0x02f02009\n\t"      // cmanip cr0[4]/MAC, W, x9
-         :   
-         : "r" (cap.MAC)
-         : "x9" // clobber list 
-    );
-}
 
 static void cc_inc_cap_offset(cc_dcap* cap, uint32_t leap){
     cap->offset+=leap;
 }
 
-static uint8_t cc_read_i8_data_via_creg0(cc_dcap cap){
+__attribute__((naked))
+static inline uint8_t cc_read_i8_via_creg0(){
     uint8_t data=0;
-    cc_load_cap_to_creg0(cap);
+    asm volatile (
+        ".word 0x02200d20\n\t"  //cldg8 x9, [cr0] (operand_1) 
+        //".word 0x02200c00\n\t"  //cldg8 x0, [cr0] (operand_1) 
+        "and %0, x9, #0xFF\n\t" // Extract the least significant byte from x9
+        : "=r" (data)  
+        :
+        : "x9", "memory"
+    );
+    return data;
+}
+__attribute__((naked))
+static inline void cc_write_i8_via_creg0(uint8_t data){
+    asm volatile (
+        "and x9, %0, #0xFF\n\t" // Extract the least significant byte from x9
+        ".word 0x02300d20\n\t"     //cstg8 x9, [cr0] (operand_1) 
+        :   
+        : "r" (data)
+        : "x9"
+    );
+    return;
+}
+
+static uint8_t cc_load_creg0_read_i8_data(cc_dcap cap){
+    uint8_t data=0;
+    cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
         ".word 0x02200d20\n\t"  //cldg8 x9, [cr0] (operand_1) 
         "and %0, x9, #0xFF\n\t" // Extract the least significant byte from x9
@@ -146,8 +229,8 @@ static uint8_t cc_read_i8_data_via_creg0(cc_dcap cap){
     return data;
 }
 
-static void cc_write_i8_data_via_creg0(cc_dcap cap, uint8_t data){
-    cc_load_cap_to_creg0(cap);
+static void cc_load_creg0_write_i8_data(cc_dcap cap, uint8_t data){
+    cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
         "and x9, %0, #0xFF\n\t" // Extract the least significant byte from x9
         ".word 0x02300d20\n\t"     //cstg8 x9, [cr0] (operand_1) 
@@ -159,9 +242,9 @@ static void cc_write_i8_data_via_creg0(cc_dcap cap, uint8_t data){
 }
 
 
-static uint16_t cc_read_i16_data_via_creg0(cc_dcap cap){
+__attribute__((naked))
+static inline uint16_t cc_read_i16_via_creg0(){
     uint16_t data;
-    cc_load_cap_to_creg0(cap);
     asm volatile (
         ".word 0x02200920\n\t"  //cldg16 x9, [cr0] (operand_1) 
         "and %0, x9, #0xFFFF\n\t" // Extract the least significant byte from x9
@@ -171,9 +254,9 @@ static uint16_t cc_read_i16_data_via_creg0(cc_dcap cap){
     );
     return data;
 }
+__attribute__((naked))
+static inline void cc_write_i16_data_via_creg0(uint16_t data){
 
-static void cc_write_i16_data_via_creg0(cc_dcap cap, uint16_t data){
-    cc_load_cap_to_creg0(cap);
     asm volatile (
         "and x9, %0, #0xFFFF\n\t" // Extract the least significant byte from x9
         ".word 0x02300920\n\t"     //cstg16 x9, [cr0] (operand_1) 
@@ -184,9 +267,34 @@ static void cc_write_i16_data_via_creg0(cc_dcap cap, uint16_t data){
     return;
 }
 
-static uint32_t cc_read_i32_data_via_creg0(cc_dcap cap){
+static uint16_t cc_load_creg0_read_i16_data(cc_dcap cap){
+    uint16_t data;
+    cc_load_ver_cap_to_creg0(&cap);
+    asm volatile (
+        ".word 0x02200920\n\t"  //cldg16 x9, [cr0] (operand_1) 
+        "and %0, x9, #0xFFFF\n\t" // Extract the least significant byte from x9
+        : "=r" (data)  
+        :
+        : "x9", "memory"
+    );
+    return data;
+}
+
+static void cc_load_creg0_write_i16_data(cc_dcap cap, uint16_t data){
+    cc_load_ver_cap_to_creg0(&cap);
+    asm volatile (
+        "and x9, %0, #0xFFFF\n\t" // Extract the least significant byte from x9
+        ".word 0x02300920\n\t"     //cstg16 x9, [cr0] (operand_1) 
+        :   
+        : "r" (data)
+        : "x9"
+    );
+    return;
+}
+
+__attribute__((naked))
+static inline uint32_t cc_read_i32_data_via_creg0(){
     uint32_t data;
-    cc_load_cap_to_creg0(cap);
     asm volatile (
         ".word 0x02200520\n\t"  //cldg x9, [cr0] (operand_1) 
         "and %0, x9, #0xFFFFFFFF\n\t" // Extract the least significant byte from x9
@@ -196,9 +304,8 @@ static uint32_t cc_read_i32_data_via_creg0(cc_dcap cap){
     );
     return data;
 }
-
-static void cc_write_i32_data_via_creg0(cc_dcap cap, uint32_t data){
-    cc_load_cap_to_creg0(cap);
+__attribute__((naked))
+static inline void cc_write_i32_data_via_creg0(uint32_t data){
     asm volatile (
         "and x9, %0, #0xFFFFFFFF\n\t" // Extract the least significant byte from x9
         ".word 0x02300520\n\t"     //cstg x9, [cr0] (operand_1) 
@@ -209,9 +316,34 @@ static void cc_write_i32_data_via_creg0(cc_dcap cap, uint32_t data){
     return;
 }
 
-static uint64_t cc_read_i64_data_via_creg0(cc_dcap cap){
-    uint64_t data;
-    cc_load_cap_to_creg0(cap);
+static uint32_t cc_load_creg0_read_i32_data(cc_dcap cap){
+    uint32_t data;
+    cc_load_ver_cap_to_creg0(&cap);
+    asm volatile (
+        ".word 0x02200520\n\t"  //cldg x9, [cr0] (operand_1) 
+        "and %0, x9, #0xFFFFFFFF\n\t" // Extract the least significant byte from x9
+        : "=r" (data)  
+        :
+        : "x9", "memory"
+    );
+    return data;
+}
+static void cc_load_creg0_write_i32_data(cc_dcap cap, uint32_t data){
+    cc_load_ver_cap_to_creg0(&cap);
+    asm volatile (
+        "and x9, %0, #0xFFFFFFFF\n\t" // Extract the least significant byte from x9
+        ".word 0x02300520\n\t"     //cstg x9, [cr0] (operand_1) 
+        :   
+        : "r" (data)
+        : "x9"
+    );
+    return;
+}
+
+
+__attribute__((naked))
+static inline uint64_t cc_read_i64_via_creg0(){
+    uint64_t data=0;
     asm volatile (
         ".word 0x02200120\n\t"  //cldg x9, [cr0] (operand_1) 
         "mov %0, x9\n\t"        // move x9 the register of data variable
@@ -221,9 +353,31 @@ static uint64_t cc_read_i64_data_via_creg0(cc_dcap cap){
     );
     return data;
 }
-
-static void cc_write_i64_data_via_creg0(cc_dcap cap, uint64_t data){
-    cc_load_cap_to_creg0(cap);
+__attribute__((naked))
+static inline void cc_write_i64_via_creg0(uint64_t data){
+    asm volatile (
+        "mov x9, %0\n\t"          // move data variable to x9
+        ".word 0x02300120\n\t"     //cstg x9, [cr0] (operand_1) 
+        :   
+        : "r" (data)
+        : "x9"
+    );
+    return;
+}
+static uint64_t cc_load_creg0_read_i64_data(cc_dcap cap){
+    uint64_t data;
+    cc_load_ver_cap_to_creg0(&cap);
+    asm volatile (
+        ".word 0x02200120\n\t"  //cldg x9, [cr0] (operand_1) 
+        "mov %0, x9\n\t"        // move x9 the register of data variable
+        : "=r" (data)  
+        :
+        : "x9", "memory"
+    );
+    return data;
+}
+static void cc_load_creg0_write_i64_data(cc_dcap cap, uint64_t data){
+    cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
         "mov x9, %0\n\t"          // move data variable to x9
         ".word 0x02300120\n\t"     //cstg x9, [cr0] (operand_1) 
@@ -234,30 +388,15 @@ static void cc_write_i64_data_via_creg0(cc_dcap cap, uint64_t data){
     return;
 }
 
-
-uint8_t* cc_memcpy(void* dst, cc_dcap src, size_t count) {
+//NEED TO OPTIMIZE THIS FUNCTION
+static uint8_t* cc_memcpy(void* dst, cc_dcap src, size_t count) {
     uint8_t* dest = (uint8_t*)dst;
-    dest[0] = cc_read_i8_data_via_creg0(src);
+    dest[0] = cc_load_creg0_read_i8_data(src);
     for (int i = 1; i < count; i++) {
         cc_inc_cap_offset(&src,1);
-        dest[i] = cc_read_i8_data_via_creg0(src);
+        dest[i] = cc_load_creg0_read_i8_data(src);
     }
     return dst;
-}
-
-
-static uint64_t cc_get_PT() {
-    uint64_t ttbr0_el1=0xDEADBEEF;
-    asm volatile(".word 0x03300000" : "=r"(ttbr0_el1));  //readttbr x0
-    printf("get_ttbr0_el1(): 0x%lx\n", ttbr0_el1);
-    return ttbr0_el1;
-}
-
-
-static void cc_print_cap(cc_dcap cap) {
-    uint64_t perms=cap.perms_base&0xFFFF000000000000;
-    uint64_t base=cap.perms_base&0x0000FFFFFFFFFFFF;
-    printf("cap.perms=0x%lx, .base=0x%lx, .offset=0x%d, .size=%d, .PT=0x%lx, .MAC=0x%lx\n", perms, base, cap.offset, cap.size, cap.PT, cap.MAC);
 }
 
 __attribute__((naked))
