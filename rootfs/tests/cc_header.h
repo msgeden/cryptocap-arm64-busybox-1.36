@@ -4,9 +4,26 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <time.h>
+
 #define SYS_dgrant 292  // Adjust syscall numbers as needed
+#define SYS_read_cap 294  // Adjust syscall numbers as needed
+#define SYS_write_cap 295  // Adjust syscall numbers as needed
+
 #define BUFFER_SIZE 100
 
+size_t MB_size = 1024;
+
+typedef enum capPermFlags {
+    READ = 1,
+    WRITE = 2,
+    EXEC = 4,
+    TRANS = 8,
+} capPermFlagsType;
 
 typedef struct cc_dcap {
      uint64_t perms_base;
@@ -33,6 +50,20 @@ typedef struct cc_dcapcl {
 } cc_dcapcl;
 
 
+
+// High-resolution timer
+struct timespec timer_start(){
+    struct timespec start_time;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
+    return start_time;
+}
+
+long timer_end(struct timespec start_time){
+    struct timespec end_time;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    long diffInNanos = end_time.tv_nsec - start_time.tv_nsec;
+    return diffInNanos;
+}
 
 static void cc_print_cap(cc_dcap cap) {
     uint64_t perms=(cap.perms_base&0xFFFF000000000000)>>48;
@@ -160,7 +191,9 @@ static void cc_store_cap_from_creg0(cc_dcap* cap){
 
 static cc_dcap cc_create_struct(void* base, size_t size, bool write_flag, uint64_t PT){
     cc_dcap cap;
-    cap.perms_base = 0xFFFF000000000000|(uint64_t)base;
+    uint64_t perms=(write_flag)?WRITE:READ;
+    perms=(perms<<48);
+    cap.perms_base = perms | (uint64_t)base;
     cap.offset = 0;
     cap.size = size;
     cap.PT = PT;
@@ -168,10 +201,11 @@ static cc_dcap cc_create_struct(void* base, size_t size, bool write_flag, uint64
     return cap;
 }    
 
-static cc_dcap cc_create_signed_cap_on_creg0(void* base, size_t size, bool write_flag){
+static cc_dcap cc_create_signed_cap_on_creg0(void* base, size_t offset, size_t size, bool write_flag){
     cc_dcap cap;
-    uint64_t perms_base = 0xFFFF000000000000 | (uint64_t)base;
-    uint64_t offset=0;
+    uint64_t perms=(write_flag)?WRITE+READ:READ;
+    perms=(perms<<48);
+    uint64_t perms_base = perms | (uint64_t)base;
     uint64_t offset_size = ((uint64_t)size << 32) | (uint64_t)offset;
     asm volatile (
         "mov x9, %0\n\t" // mov perms_base to x9
@@ -388,8 +422,22 @@ static void cc_load_creg0_write_i64_data(cc_dcap cap, uint64_t data){
     return;
 }
 
+static uint8_t* cc_memcpy_i8(void* dst, cc_dcap src, size_t count) {
+    uint8_t* dest = (uint8_t*)dst;
+    dest[0] = cc_load_creg0_read_i8_data(src);
+    for (int i = 1; i < count; i++) {
+        asm volatile (
+            ".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
+            "add x9, x9, #1\n\t"
+            ".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
+        );
+        dest[i] = cc_read_i8_via_creg0();
+    }
+    return dst;
+}
+
 //NEED TO OPTIMIZE THIS FUNCTION
-static uint8_t* cc_memcpy(void* dst, cc_dcap src, size_t count) {
+static uint8_t* cc_memcpy_unoptimised(void* dst, cc_dcap src, size_t count) {
     uint8_t* dest = (uint8_t*)dst;
     dest[0] = cc_load_creg0_read_i8_data(src);
     for (int i = 1; i < count; i++) {

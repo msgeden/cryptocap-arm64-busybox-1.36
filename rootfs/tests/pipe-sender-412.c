@@ -40,17 +40,17 @@ int main() {
         
         //send the text
         char message_via_pipe[] = "Hello from sender via pipe-copy!";
+
         write(pipefd[1], message_via_pipe, sizeof(buffer));
 
         //send the cap for str
         char message_via_cap[] = "Hello from sender via pipe-cap!";
-        cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(message_via_cap, strlen(message_via_cap) + 1, false);
+        cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(message_via_cap, 0, strlen(message_via_cap) + 1, true);
         printf("Sender: ");
         cc_print_cap(sent_cap_str);
 
         //send the cap for int
-        //cc_dcap sent_cap_int=cc_create_struct(&int_via_cap, sizeof(uint64_t), false, cc_get_PT());
-        cc_dcap sent_cap_int=cc_create_signed_cap_on_creg0(&int_via_cap, sizeof(uint64_t), false);
+        cc_dcap sent_cap_int=cc_create_signed_cap_on_creg0(&int_via_cap, 0, sizeof(uint64_t), true);
         printf("Sender: ");
         cc_print_cap(sent_cap_int);
         
@@ -60,8 +60,11 @@ int main() {
         printf("Sender: Integer received via intra-domain cap: %ld\n", int_value);
 
         //MAC to be signed by kernel within our custom write_cap function
-        write(pipefd[1], &sent_cap_str, sizeof(cc_dcap));
-        write(pipefd[1], &sent_cap_int, sizeof(cc_dcap));
+        //write(pipefd[1], &sent_cap_str, sizeof(cc_dcap));
+        //write(pipefd[1], &sent_cap_int, sizeof(cc_dcap));
+        syscall(SYS_write_cap, pipefd[1], &sent_cap_str);
+        syscall(SYS_write_cap, pipefd[1], &sent_cap_int);
+
 
         close(pipefd[1]);
        

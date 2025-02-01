@@ -17,12 +17,12 @@ int main() {
         
     //receive the str cap 
     cc_dcap recv_cap_str;
-    read(STDIN_FILENO, &recv_cap_str, sizeof(cc_dcap));
+    syscall(SYS_read_cap, STDIN_FILENO, &recv_cap_str);
     printf("Receiver: "); cc_print_cap(recv_cap_str);
 
     //receive the int cap 
     cc_dcap recv_cap_int;
-    read(STDIN_FILENO, &recv_cap_int, sizeof(cc_dcap));
+    syscall(SYS_read_cap, STDIN_FILENO, &recv_cap_int);
     printf("Receiver: "); cc_print_cap(recv_cap_int);
 
     uint64_t recv_int_val = cc_load_creg0_read_i64_data(recv_cap_int);
@@ -32,6 +32,7 @@ int main() {
     printf("Receiver: Integer received via cross-domain cap: %ld\n", recv_int_val);
 
     cc_load_creg0_write_i64_data(recv_cap_int,54);
+    
     recv_int_val = cc_load_creg0_read_i64_data(recv_cap_int);
     printf("Receiver: Integer modified via cross-domain cap: %ld\n", recv_int_val);
 
@@ -39,7 +40,7 @@ int main() {
     cc_load_ver_cap_to_creg0(&recv_cap_int);
 
     //IMPORTANT: there has to be a copy for call by reference functions unless all pointers are capabilities
-    cc_memcpy(recv_data, recv_cap_str, recv_cap_str.size);
+    cc_memcpy_i8(recv_data, recv_cap_str, recv_cap_str.size);
     printf("Receiver: String received via pipe-cap: %s\n", recv_data);
     
     return 0;
