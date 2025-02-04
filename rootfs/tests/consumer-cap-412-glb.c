@@ -20,9 +20,18 @@
 
 #include "cc_header.h"
 
-size_t total_size=0;
+
+size_t total_size=1;
 clock_t start_t, end_t;
 double total_t;
+
+char data[PIPE_SIZE+1];
+
+// Wrapper for the custom cap_read syscall.
+ssize_t cap_read(int fd, void *buf, size_t count) {
+    return read(fd, buf, count);
+}
+
 
 #define PATTERN_LEN 8
 
@@ -54,23 +63,13 @@ int main(int argc, char *argv[]) {
 
     start_t = clock();
     cc_dcap recv_cap_str;
-    cap_read(fd, &recv_cap_str);
-    //read(fd, &recv_cap_str,sizeof(cc_dcap));
+    read(fd, &recv_cap_str, sizeof(cc_dcap));
     printf("Receiver: "); cc_print_cap(recv_cap_str);
-
-
-    cc_dcap modified_cap_base=cc_setbase_resign_on_creg0((recv_cap_str.perms_base&0x0000FFFFFFFFFFFF)+8, recv_cap_str);
-    printf("Receiver: ");
-    cc_print_cap(modified_cap_base);
-
-    cc_dcap modified_cap_size=cc_setsize_resign_on_creg0(recv_cap_str.size-4, recv_cap_str);
-    printf("Receiver: ");
-    cc_print_cap(modified_cap_size);
-
-
     // Allocate a contiguous buffer for the entire data.
     total_size=recv_cap_str.size;
-    char *data = malloc(total_size+1);
+
+
+    //char *data = malloc(total_size+1);
 
 
     if (!data) {
@@ -96,7 +95,7 @@ int main(int argc, char *argv[]) {
     }
     end_t = clock();
     total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-    printf("\nTotal time (s) of data write (%d bytes):\t %f\n", (total_size),total_t);
+    printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size/1024/1024),total_t);
     
     printf("Found %llu occurrences of pattern \"%s\" in %llu bytes of data.\n",
            occurrences, pattern, total_size);

@@ -15,6 +15,7 @@
 #define SYS_write_cap 295  // Adjust syscall numbers as needed
 
 #define BUFFER_SIZE 100
+#define PIPE_SIZE 1024
 
 size_t MB_size = 1024;
 
@@ -49,20 +50,16 @@ typedef struct cc_dcapcl {
 
 } cc_dcapcl;
 
-
-
-// High-resolution timer
-struct timespec timer_start(){
-    struct timespec start_time;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
-    return start_time;
+// A simple wrapper for the custom write_cap syscall.
+ssize_t cap_write(int fd, const void *buf) {
+    //return write(fd, buf, count);
+    return syscall(SYS_write_cap, fd, buf);
 }
 
-long timer_end(struct timespec start_time){
-    struct timespec end_time;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
-    long diffInNanos = end_time.tv_nsec - start_time.tv_nsec;
-    return diffInNanos;
+// A simple wrapper for the custom read_cap syscall.
+ssize_t cap_read(int fd, const void *buf) {
+    //return read(fd, buf, count);
+    return syscall(SYS_read_cap, fd, buf);
 }
 
 static void cc_print_cap(cc_dcap cap) {
@@ -220,23 +217,68 @@ static cc_dcap cc_create_signed_cap_on_creg0(void* base, size_t offset, size_t s
 }    
 
 
+static cc_dcap cc_setbase_resign_on_creg0(void* new_base, cc_dcap original_cap){
+    cc_load_ver_cap_to_creg0(&original_cap);
+    cc_dcap new_cap;
+    asm volatile (
+        "mov x9, %0\n\t" // mov new_base to x9
+        ".word 0x02500009\n\t"  //csetbase cr0, cr0, x9  
+        : 
+        : "r" (new_base)
+        : "x9", "x10"
+    );
+    cc_store_cap_from_creg0(&new_cap);
+    return new_cap;
+}    
+
+
+static cc_dcap cc_setperms_resign_on_creg0(uint32_t perms, cc_dcap original_cap){
+    cc_load_ver_cap_to_creg0(&original_cap);
+    cc_dcap new_cap;
+    asm volatile (
+        "mov x9, %0\n\t" // mov new_base to x9
+        ".word 0x02700009\n\t"  //setsize cr0, cr0, x9  
+        : 
+        : "r" (perms)
+        : "x9", "x10"
+    );
+    cc_store_cap_from_creg0(&new_cap);
+    return new_cap;
+}    
+
+static cc_dcap cc_setsize_resign_on_creg0(uint32_t size, cc_dcap original_cap){
+    cc_load_ver_cap_to_creg0(&original_cap);
+    cc_dcap new_cap;
+    asm volatile (
+        "mov x9, %0\n\t" // mov new_base to x9
+        ".word 0x02600009\n\t"  //setsize cr0, cr0, x9  
+        : 
+        : "r" (size)
+        : "x9", "x10"
+    );
+    cc_store_cap_from_creg0(&new_cap);
+    return new_cap;
+}    
+
+
+
 static void cc_inc_cap_offset(cc_dcap* cap, uint32_t leap){
     cap->offset+=leap;
 }
 
 __attribute__((naked))
-static inline uint8_t cc_read_i8_via_creg0(){
-    uint8_t data=0;
-    asm volatile (
-        ".word 0x02200d20\n\t"  //cldg8 x9, [cr0] (operand_1) 
-        //".word 0x02200c00\n\t"  //cldg8 x0, [cr0] (operand_1) 
-        "and %0, x9, #0xFF\n\t" // Extract the least significant byte from x9
-        : "=r" (data)  
-        :
-        : "x9", "memory"
-    );
-    return data;
-}
+    static inline uint8_t cc_read_i8_via_creg0(){
+        uint8_t data=0;
+        asm volatile (
+            ".word 0x02200d20\n\t"  //cldg8 x9, [cr0] (operand_1) 
+            //".word 0x02200c00\n\t"  //cldg8 x0, [cr0] (operand_1) 
+            "and %0, x9, #0xFF\n\t" // Extract the least significant byte from x9
+            : "=r" (data)  
+            :
+            : "x9", "memory"
+        );
+        return data;
+    }
 __attribute__((naked))
 static inline void cc_write_i8_via_creg0(uint8_t data){
     asm volatile (
@@ -420,6 +462,33 @@ static void cc_load_creg0_write_i64_data(cc_dcap cap, uint64_t data){
         : "x9"
     );
     return;
+}
+
+static uint8_t* cc_memcpy_i8_asm(void* dst, cc_dcap src, size_t count) {
+    uint8_t* dest = (uint8_t*)dst;
+    if (count == 0) return dst;
+    
+    // Handle first byte outside the loop
+    dest[0] = cc_load_creg0_read_i8_data(src);
+
+    if (count <= 1) return dst;
+
+    asm volatile (
+        "mov x9, #1\n\t"               // Initialize offset (start from index 1)
+        "1:\n\t"                       // Loop start
+        ".word 0x02f00c09\n\t"         // cmanip cr0[1]/offset, R, x9\n\t" 
+        "add x9, x9, #1\n\t"           // Increment offset
+        ".word 0x02f00809\n\t"         //"cmanip cr0[1]/offset, W, x9\n\t" 
+        ".word 0x02200d40\n\t"         //"cldg8 x10, [cr0]\n\t"         // Load byte from capability register
+        "strb w10, [%[dest], x9]\n\t"  // Store byte to destination (offset x9)
+        "subs %[count], %[count], #1\n\t" // Decrement counter
+        "b.ne 1b\n\t"                  // Branch if not zero
+
+        : [dest] "+r" (dest), [count] "+r" (count)
+        : 
+        : "x9", "x10", "memory"
+    );
+    return dst;
 }
 
 static uint8_t* cc_memcpy_i8(void* dst, cc_dcap src, size_t count) {

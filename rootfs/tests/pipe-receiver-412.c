@@ -40,7 +40,7 @@ int main() {
     cc_load_ver_cap_to_creg0(&recv_cap_int);
 
     //IMPORTANT: there has to be a copy for call by reference functions unless all pointers are capabilities
-    cc_memcpy_i8(recv_data, recv_cap_str, recv_cap_str.size);
+    cc_memcpy_i8_asm(recv_data, recv_cap_str, recv_cap_str.size);
     printf("Receiver: String received via pipe-cap: %s\n", recv_data);
     
     return 0;
