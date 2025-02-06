@@ -27,45 +27,29 @@ double total_t;
 #define PATTERN_LEN 8
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <char-pattern> <total_size> [input_file]\n", argv[0]);
-        return EXIT_FAILURE;
-    }
 
-    total_size = atol(argv[2])*MB_size;
-    if (total_size <= 0) {
-        fprintf(stderr, "Invalid size provided.\n");
-        return EXIT_FAILURE;
-    }
-             
-    const char *pattern = argv[1];
+    char *pattern = "*";
+
+    if (argc > 1) 
+        pattern=argv[1];
+
     size_t pattern_size = strlen(pattern);
 
 
-    // Open the input file if provided; otherwise, use standard input.
-    int fd = STDIN_FILENO;
-    if (argc >= 4) {
-        fd = open(argv[3], O_RDONLY);
-        if (fd < 0) {
-            perror("open");
-            return EXIT_FAILURE;
-        }
-    }
-
     start_t = clock();
     cc_dcap recv_cap_str;
-    cap_read(fd, &recv_cap_str);
+    cap_read(STDIN_FILENO, &recv_cap_str);
     //read(fd, &recv_cap_str,sizeof(cc_dcap));
-    printf("Receiver: "); cc_print_cap(recv_cap_str);
+    //printf("Receiver: "); cc_print_cap(recv_cap_str);
 
 
     cc_dcap modified_cap_base=cc_setbase_resign_on_creg0((recv_cap_str.perms_base&0x0000FFFFFFFFFFFF)+8, recv_cap_str);
-    printf("Receiver: ");
-    cc_print_cap(modified_cap_base);
+    //printf("Receiver: ");
+    //cc_print_cap(modified_cap_base);
 
     cc_dcap modified_cap_size=cc_setsize_resign_on_creg0(recv_cap_str.size-4, recv_cap_str);
-    printf("Receiver: ");
-    cc_print_cap(modified_cap_size);
+    //printf("Receiver: ");
+    //cc_print_cap(modified_cap_size);
 
 
     // Allocate a contiguous buffer for the entire data.
@@ -73,20 +57,9 @@ int main(int argc, char *argv[]) {
     char *data = malloc(total_size+1);
 
 
-    if (!data) {
-        perror("malloc");
-        if (fd != STDIN_FILENO)
-            close(fd);
-        return EXIT_FAILURE;
-    }
-
-
-    cc_memcpy_i8_asm(data, recv_cap_str, total_size);
+    cc_memcpy_i8(data, recv_cap_str, total_size);
     data[total_size] = '\0';
     printf("Receiver: data:%s ", data);
-
-    if (fd != STDIN_FILENO)
-        close(fd);
 
     // Now that the complete data is in memory, search for the pattern.
     unsigned long long occurrences = 0;

@@ -40,8 +40,12 @@ int main() {
     cc_load_ver_cap_to_creg0(&recv_cap_int);
 
     //IMPORTANT: there has to be a copy for call by reference functions unless all pointers are capabilities
-    cc_memcpy_i8_asm(recv_data, recv_cap_str, recv_cap_str.size);
-    printf("Receiver: String received via pipe-cap: %s\n", recv_data);
+    char* recv_str=malloc(recv_cap_str.size+1);
+    printf("Receiver: malloc address:0x%lx\n", recv_str);
+    cc_memcpy_i8_dbg(recv_str, recv_cap_str, recv_cap_str.size);
+   
+   
+    printf("Receiver: String received via pipe-cap: %s\n", recv_str);
     
     return 0;
 }

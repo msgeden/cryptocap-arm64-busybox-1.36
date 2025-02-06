@@ -68,101 +68,11 @@ static void cc_print_cap(cc_dcap cap) {
     printf("cap.perms=0x%lx, .base=0x%lx, .offset=%d, .size=%d, .PT=0x%lx, .MAC=0x%lx\n", perms, base, cap.offset, cap.size, cap.PT, cap.MAC);
 }
 
-
 static uint64_t cc_get_PT() {
     uint64_t ttbr0_el1=0xDEADBEEF;
     asm volatile(".word 0x03300000" : "=r"(ttbr0_el1));  //readttbr x0
     return ttbr0_el1;
 }
-
-
-// static cc_dcap cc_store_cap_from_creg0(){
-//     cc_dcap cap;
-//     asm volatile (
-//          ".word 0x02f00409\n\t"      // cmanip cr0[0]/perms_base, R, x9
-//          "mov %0, x9\n\t"
-//          : "=r" (cap.perms_base)
-//          : 
-//          : "x9","memory" // clobber list 
-//     );
-
-//     asm volatile (
-//          ".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
-//          "mov %0, x9\n\t"
-//          : "=r" (cap.offset)
-//          : 
-//          : "x9","memory" // clobber list 
-//     );
-
-//     asm volatile (
-//          ".word 0x02f01409\n\t"      // cmanip cr0[2]/size, R, x9
-//          "mov %0, x9\n\t"
-//          : "=r" (cap.size)
-//          : 
-//          : "x9","memory" // clobber list 
-//     );
-
-//     asm volatile (
-//          ".word 0x02f01c09\n\t"      // cmanip cr0[3]/PT, R, x9
-//          "mov %0, x9\n\t"
-//          : "=r" (cap.PT)
-//          : 
-//          : "x9","memory" // clobber list 
-//     );
-    
-//     asm volatile (
-//          ".word 0x02f02409\n\t"      // cmanip cr0[4]/MAC, R, x9
-//          "mov %0, x9\n\t"
-//          : "=r" (cap.MAC)
-//          : 
-//          : "x9","memory" // clobber list 
-//     );
-//     return cap;
-// }
-
-// static void cc_load_cap_to_creg0(cc_dcap cap){
-
-//     asm volatile (
-//          "mov x9, %0\n\t"
-//          ".word 0x02f00009\n\t"      // cmanip cr0[0]/perms_base, W, x9
-//          :   
-//          : "r" (cap.perms_base)
-//          : "x9" // clobber list 
-//     );
-
-//     asm volatile (
-//          "mov x9, %0\n\t"
-//          ".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
-//          :   
-//          : "r" (cap.offset)
-//          : "x9" // clobber list 
-//     );
-
-//     asm volatile (
-//          "mov x9, %0\n\t"
-//          ".word 0x02f01009\n\t"      // cmanip cr0[2]/size, W, x9
-//          :   
-//          : "r" (cap.size)
-//          : "x9" // clobber list 
-//     );
-
-//     asm volatile (
-//          "mov x9, %0\n\t"
-//          ".word 0x02f01809\n\t"      // cmanip cr0[3]/PT, W, x9
-//          :   
-//          : "r" (cap.PT)
-//          : "x9" // clobber list 
-//     );
-
-//     asm volatile (
-//          "mov x9, %0\n\t"
-//          ".word 0x02f02009\n\t"      // cmanip cr0[4]/MAC, W, x9
-//          :   
-//          : "r" (cap.MAC)
-//          : "x9" // clobber list 
-//     );
-// }
-
 
 static void cc_load_ver_cap_to_creg0(cc_dcap* cap){
     asm volatile (
@@ -184,7 +94,6 @@ static void cc_store_cap_from_creg0(cc_dcap* cap){
          : "x9" // clobber list 
     );
 }
-
 
 static cc_dcap cc_create_struct(void* base, size_t size, bool write_flag, uint64_t PT){
     cc_dcap cap;
@@ -215,7 +124,6 @@ static cc_dcap cc_create_signed_cap_on_creg0(void* base, size_t offset, size_t s
     cc_store_cap_from_creg0(&cap);
     return cap;
 }    
-
 
 static cc_dcap cc_setbase_resign_on_creg0(void* new_base, cc_dcap original_cap){
     cc_load_ver_cap_to_creg0(&original_cap);
@@ -260,8 +168,6 @@ static cc_dcap cc_setsize_resign_on_creg0(uint32_t size, cc_dcap original_cap){
     return new_cap;
 }    
 
-
-
 static void cc_inc_cap_offset(cc_dcap* cap, uint32_t leap){
     cap->offset+=leap;
 }
@@ -278,7 +184,8 @@ __attribute__((naked))
             : "x9", "memory"
         );
         return data;
-    }
+}
+
 __attribute__((naked))
 static inline void cc_write_i8_via_creg0(uint8_t data){
     asm volatile (
@@ -316,7 +223,6 @@ static void cc_load_creg0_write_i8_data(cc_dcap cap, uint8_t data){
     );
     return;
 }
-
 
 __attribute__((naked))
 static inline uint16_t cc_read_i16_via_creg0(){
@@ -404,6 +310,7 @@ static uint32_t cc_load_creg0_read_i32_data(cc_dcap cap){
     );
     return data;
 }
+
 static void cc_load_creg0_write_i32_data(cc_dcap cap, uint32_t data){
     cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
@@ -429,6 +336,7 @@ static inline uint64_t cc_read_i64_via_creg0(){
     );
     return data;
 }
+
 __attribute__((naked))
 static inline void cc_write_i64_via_creg0(uint64_t data){
     asm volatile (
@@ -440,6 +348,7 @@ static inline void cc_write_i64_via_creg0(uint64_t data){
     );
     return;
 }
+
 static uint64_t cc_load_creg0_read_i64_data(cc_dcap cap){
     uint64_t data;
     cc_load_ver_cap_to_creg0(&cap);
@@ -452,6 +361,7 @@ static uint64_t cc_load_creg0_read_i64_data(cc_dcap cap){
     );
     return data;
 }
+
 static void cc_load_creg0_write_i64_data(cc_dcap cap, uint64_t data){
     cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
@@ -483,13 +393,39 @@ static uint8_t* cc_memcpy_i8_asm(void* dst, cc_dcap src, size_t count) {
         "strb w10, [%[dest], x9]\n\t"  // Store byte to destination (offset x9)
         "subs %[count], %[count], #1\n\t" // Decrement counter
         "b.ne 1b\n\t"                  // Branch if not zero
-
         : [dest] "+r" (dest), [count] "+r" (count)
         : 
         : "x9", "x10", "memory"
     );
     return dst;
 }
+
+static uint8_t* cc_memcpy_i8_dbg(char* dst, cc_dcap src, size_t count) {
+    uint64_t src_addr;
+    dst[0] = cc_load_creg0_read_i8_data(src);
+    printf("memcpy_i8: dest:0x%lx\n", &dst[0]);
+
+
+    for (int i = 1; i < count; i++) {
+        asm volatile (
+            ".word 0x02f0040a\n\t"      // cmanip cr0[0]/perms_base, R, x10
+            "lsl x10, x10, #16\n\t"
+            "lsr x10, x10, #16\n\t"
+            ".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
+            "add x9, x9, #1\n\t"
+            "add x10, x10, x9\n\t"
+            ".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
+            : "=r" (src_addr)
+            : 
+            : "x9","x10","memory"
+        );
+        dst[i] = cc_read_i8_via_creg0();
+        //printf("memcpy_i8: address copy dst:0x%lx\n", &dest[i]);
+        //printf("memcpy_i8: address copy src:0x%lx\n", src_addr);
+    }
+    return dst;
+}
+
 
 static uint8_t* cc_memcpy_i8(void* dst, cc_dcap src, size_t count) {
     uint8_t* dest = (uint8_t*)dst;
@@ -505,7 +441,6 @@ static uint8_t* cc_memcpy_i8(void* dst, cc_dcap src, size_t count) {
     return dst;
 }
 
-//NEED TO OPTIMIZE THIS FUNCTION
 static uint8_t* cc_memcpy_unoptimised(void* dst, cc_dcap src, size_t count) {
     uint8_t* dest = (uint8_t*)dst;
     dest[0] = cc_load_creg0_read_i8_data(src);

@@ -38,7 +38,9 @@ int main(int argc, char *argv[]) {
     }
     
     // Allocate a single contiguous block of memory for the entire data.
-    char *buffer = malloc(total_size);
+    char *buffer = malloc(total_size+1);
+    //printf("Sender: malloc address:0x%lx\n", buffer);
+
     if (!buffer) {
         perror("malloc");
         return EXIT_FAILURE;
@@ -48,25 +50,25 @@ int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL));
     
     // Fill the entire buffer with random printable ASCII characters (from ' ' to '~').
-    for (size_t i = 0; i < total_size; i++) {
+    for (size_t i = 0; i < total_size-1; i++) {
         buffer[i] = 'a' + (rand() % ('z' - 'a' + 1));
     }
-    
+    buffer[total_size-1]=0;
 
     //send the cap for str
     cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(buffer, 0, total_size, true);
-    printf("Sender: ");
-    cc_print_cap(sent_cap_str);
+    //printf("Sender: ");
+    //cc_print_cap(sent_cap_str);
 
-    start_t = clock();
+    //start_t = clock();
     //MAC to be signed by kernel within our custom write_cap function
     cap_write(STDOUT_FILENO, &sent_cap_str);
     //write(STDOUT_FILENO, &sent_cap_str, sizeof(cc_dcap));
     end_t = clock();
     total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-    printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size),total_t);
+    //printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size),total_t);
     
-    wait(10);
+    sleep(15);
     free(buffer);
     return EXIT_SUCCESS;
 }
