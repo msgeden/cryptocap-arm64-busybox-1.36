@@ -30,13 +30,12 @@ double total_t;
 int main(int argc, char *argv[]) {
     // Default total size: 100 MB.
     if (argc > 1) {
-        total_size = atol(argv[1])*MB_size;
+        total_size = atol(argv[1])*KB_size;
         if (total_size == 0) {
             fprintf(stderr, "Invalid size provided.\n");
             return EXIT_FAILURE;
         }
     }
-    
     // Allocate a single contiguous block of memory for the entire data.
     char *buffer = malloc(total_size);
     if (!buffer) {
@@ -46,23 +45,24 @@ int main(int argc, char *argv[]) {
     
     // Seed the random number generator.
     srand((unsigned int) time(NULL));
-    
     // Fill the entire buffer with random printable ASCII characters (from ' ' to '~').
-    for (size_t i = 0; i < total_size; i++) {
+    for (size_t i = 0; i < total_size-1; i++) {
         buffer[i] = 'a' + (rand() % ('z' - 'a' + 1));
+        //buffer[i] = 'a' + (i % 27);
     }
-    
+    buffer[total_size-1]=0;
     // At this point, the entire data is ready in memory.
-    // Now write the entire buffer in one syscall call.
 
-    start_t = clock();
+    // Now write the entire buffer in one syscall call.
     write(STDOUT_FILENO, &total_size, sizeof(size_t));
+    start_t = clock();
     write(STDOUT_FILENO, buffer, total_size);
     end_t = clock();
-    total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-    //printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size),total_t);
+    total_t = (double)(end_t - start_t);
+    write(STDOUT_FILENO, &total_t, sizeof(double));
 
-    sleep(15);
+    //printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size),total_t/CLOCKS_PER_SEC);
+    sleep(25);
     free(buffer);
     return EXIT_SUCCESS;
 }

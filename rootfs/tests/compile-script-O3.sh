@@ -10,7 +10,7 @@ fi
 FILE_NAME=$1
 
 # Step 1: Compile the C file with aarch64-linux-gnu-gcc
-aarch64-linux-gnu-gcc ${FILE_NAME}.c -g  -o ${FILE_NAME}.exe -static
+aarch64-linux-gnu-gcc ${FILE_NAME}.c -O3 -g   -o ${FILE_NAME}.exe -static
 if [ $? -ne 0 ]; then
   echo "GCC compilation failed"
   exit 1

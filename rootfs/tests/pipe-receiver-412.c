@@ -1,14 +1,22 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <time.h>
+#include <signal.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
 
+
 #include "cc_header.h"
+size_t total_size=0;
+clock_t start_t, end_t;
+double total_t;
+double sender_t;
 
 int main() {
+
 
     //receive the actual data
     char recv_data[BUFFER_SIZE];
@@ -45,7 +53,28 @@ int main() {
     cc_memcpy_i8_dbg(recv_str, recv_cap_str, recv_cap_str.size);
    
    
-    printf("Receiver: String received via pipe-cap: %s\n", recv_str);
-    
+    // printf("Receiver: String received via pipe-cap: %s\n", recv_str);
+
+    // //receive the str cap 
+    // cc_dcap recv_cap_str;
+    // read(STDIN_FILENO, &recv_cap_str, sizeof(cc_dcap));
+    // //read_cap(STDIN_FILENO, &recv_cap_str);
+    // printf("Receiver: "); cc_print_cap(recv_cap_str);
+
+    // //IMPORTANT: there has to be a copy for call by reference functions unless all pointers are capabilities
+    // char* recv_str=malloc(recv_cap_str.size);
+    // printf("Receiver: allocated heap (malloc) base:0x%p\n", recv_str);
+    // start_t = clock();
+    // cc_memcpy_i8(recv_str, recv_cap_str, recv_cap_str.size);
+    // end_t = clock();
+    // total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;    
+    // printf("Receiver: memcpy is completed for %.2f of data (MB) in %.2f seconds\n", (double)recv_cap_str.size/(1024*1024), total_t);
+
+    // // --- Resume sender process---
+    // cc_resume_process(getppid());
+
+    // // Free the allocated memory
+    // free(recv_str); 
+
     return 0;
 }

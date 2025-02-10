@@ -24,58 +24,33 @@
 size_t total_size=0;
 clock_t start_t, end_t;
 double total_t;
-
-// Wrapper for the custom cap_read syscall.
-ssize_t cap_read(int fd, void *buf, size_t count) {
-    return read(fd, buf, count);
-}
+double sender_t;
 
 
 #define PATTERN_LEN 8
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <char-pattern> <total_size> [input_file]\n", argv[0]);
-        return EXIT_FAILURE;
-    }
+    
+    char *pattern = "*";
 
-    total_size = atol(argv[2])*MB_size;
-    if (total_size <= 0) {
-        fprintf(stderr, "Invalid size provided.\n");
-        return EXIT_FAILURE;
-    }
-             
-    const char *pattern = argv[1];
+    if (argc > 1) 
+        pattern=argv[1];
+
     size_t pattern_size = strlen(pattern);
 
 
-    // Open the input file if provided; otherwise, use standard input.
-    int fd = STDIN_FILENO;
-    if (argc >= 4) {
-        fd = open(argv[3], O_RDONLY);
-        if (fd < 0) {
-            perror("open");
-            return EXIT_FAILURE;
-        }
-    }
 
-    start_t = clock();
-    read(fd, &total_size, sizeof(size_t));
+    read(STDIN_FILENO, &total_size, sizeof(size_t));
     // Allocate a contiguous buffer for the entire data.
-    char *data = malloc(total_size+1);
-    if (!data) {
-        perror("malloc");
-        if (fd != STDIN_FILENO)
-            close(fd);
-        return EXIT_FAILURE;
-    }
+    char *data = malloc(total_size);
+    start_t = clock();
+    read(STDIN_FILENO, data, total_size);
+    //printf("Receiver: data:%s ", data);
+    end_t = clock();
+    read(STDIN_FILENO, &sender_t, sizeof(double));
+    total_t = (double)(end_t - start_t+sender_t)/CLOCKS_PER_SEC;
 
-    read(fd, data, total_size);
-    data[total_size] = '\0';
-    printf("Receiver: data:%s ", data);
-    
-    if (fd != STDIN_FILENO)
-        close(fd);
+    printf("\nTotal time (s) of two copies (%.2f MB) via traditional pipe:\t %.4f\n", (double)total_size/(1024*1024),total_t);
 
     // Now that the complete data is in memory, search for the pattern.
     unsigned long long occurrences = 0;
@@ -83,11 +58,6 @@ int main(int argc, char *argv[]) {
         if (memcmp(data + i, pattern, pattern_size) == 0)
             occurrences++;
     }
-
-    end_t = clock();
-    total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-    printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size/1024/1024),total_t);
-    
     printf("Found %llu occurrences of pattern \"%s\" in %llu bytes of data.\n",
            occurrences, pattern, total_size);
 

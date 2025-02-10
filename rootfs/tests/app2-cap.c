@@ -14,10 +14,9 @@ int main(void) {
     cc_print_cap(recv_cap_str);
     //scanf("%d", &size); 
     char* recv_buffer=(char*)malloc(recv_cap_str.size*sizeof(char));
-    //printf("Hello null: %s\n", recv_buffer);
-
+   
     cc_memcpy_i8(recv_buffer, recv_cap_str, recv_cap_str.size);
-    printf("Hello lowercase: %s\n", recv_buffer);
+    printf("Buffer is copied via cc_memcpy: %s\n", recv_buffer);
     //scanf("%s", recv_buffer); 
     for (int i = 0; i<size-1; i++) {
         recv_buffer[i] = toupper(recv_buffer[i]); // Convert to uppercase

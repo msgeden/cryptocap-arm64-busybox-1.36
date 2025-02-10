@@ -30,7 +30,7 @@ double total_t;
 int main(int argc, char *argv[]) {
     // Default total size: 100 MB.
     if (argc > 1) {
-        total_size = atol(argv[1])*MB_size;
+        total_size = atol(argv[1])*KB_size;
         if (total_size == 0) {
             fprintf(stderr, "Invalid size provided.\n");
             return EXIT_FAILURE;
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Allocate a single contiguous block of memory for the entire data.
-    char *buffer = malloc(total_size+1);
+    char *buffer = malloc(total_size);
     //printf("Sender: malloc address:0x%lx\n", buffer);
 
     if (!buffer) {
@@ -49,9 +49,9 @@ int main(int argc, char *argv[]) {
     // Seed the random number generator.
     srand((unsigned int) time(NULL));
     
-    // Fill the entire buffer with random printable ASCII characters (from ' ' to '~').
     for (size_t i = 0; i < total_size-1; i++) {
         buffer[i] = 'a' + (rand() % ('z' - 'a' + 1));
+        //buffer[i] = 'a' + (i % 27);
     }
     buffer[total_size-1]=0;
 
@@ -60,15 +60,23 @@ int main(int argc, char *argv[]) {
     //printf("Sender: ");
     //cc_print_cap(sent_cap_str);
 
-    //start_t = clock();
+    // Allocate a contiguous buffer for the entire data.
+    start_t = clock();
+    char *local_copy = malloc(total_size);
+    cc_memcpy_i8_asm(local_copy, sent_cap_str, total_size);
+    end_t = clock();
+    printf("\nTotal time (s) of a single local copy (%.2f MB) via cap-based pipe:\t %.4f\n", (double)total_size/(1024*1024),total_t);
+ 
+    start_t = clock();
     //MAC to be signed by kernel within our custom write_cap function
-    cap_write(STDOUT_FILENO, &sent_cap_str);
+    write_cap(STDOUT_FILENO, &sent_cap_str);
     //write(STDOUT_FILENO, &sent_cap_str, sizeof(cc_dcap));
     end_t = clock();
     total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
     //printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size),total_t);
+
     
-    sleep(15);
+    sleep(25);
     free(buffer);
     return EXIT_SUCCESS;
 }

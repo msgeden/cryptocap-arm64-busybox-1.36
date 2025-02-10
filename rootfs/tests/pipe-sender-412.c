@@ -1,38 +1,44 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <time.h>
+#include <signal.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
 
+
+
 #include "cc_header.h"
 
 size_t total_size=0;
+clock_t start_t, end_t;
+double total_t;
+double sender_t;
 
 int main(int argc, char *argv[]) {
 
     int pipefd[2];
     
-    if (argc > 1) {
-        total_size = atol(argv[1])*MB_size;
+    if (argc < 2) {
+        total_size = atol(argv[1])*KB_size;
         if (total_size == 0) {
             fprintf(stderr, "Invalid size provided.\n");
             return EXIT_FAILURE;
         }
     }
-    
-    pid_t pid;
+
     char buffer[BUFFER_SIZE];
+    pid_t pid;
     
     if (pipe(pipefd) == -1) {
         perror("pipe");
         return 1;
     }
 
-    uint64_t int_via_cap = 52;
-
     pid = fork();
+    uint64_t int_via_cap = 52;
     if (pid == 0) { // Child process
 
         close(pipefd[1]); 
@@ -105,9 +111,26 @@ int main(int argc, char *argv[]) {
         printf("Sender: wait\n");
 
         wait(NULL); // Wait for the child process to finish
-    }
-    printf("Return\n");
+        
+        // //write_cap(pipefd[1], &sent_cap_str);
 
+        // // --- Freeze this (sender) process---
+        // cc_suspend_process(getpid());
+        
+        // char* local_copy=malloc(sent_cap_str.size);
+        // printf("Sender: allocated heap (malloc) base for local memcpy:0x%p\n", local_copy);
+        // start_t = clock();
+        // cc_memcpy_i8(local_copy, sent_cap_str, sent_cap_str.size);
+        // end_t = clock();
+        // total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;    
+        // printf("Sender: local memcpy is completed for %.2f of data (MB) in %.2f seconds\n", (double)sent_cap_str.size/(1024*1024), total_t);
+    
+        // Free the allocated memory
+        //free(local_copy); 
+        
+    }
+
+    printf("Return\n");
 
     return 0;
 }

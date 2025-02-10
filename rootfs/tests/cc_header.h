@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -17,7 +18,7 @@
 #define BUFFER_SIZE 100
 #define PIPE_SIZE 1024
 
-size_t MB_size = 1024;
+size_t KB_size = 1024;
 
 typedef enum capPermFlags {
     READ = 1,
@@ -50,15 +51,23 @@ typedef struct cc_dcapcl {
 
 } cc_dcapcl;
 
+void cc_resume_process(pid_t pid) {
+    kill(pid, SIGCONT);
+    return;
+}
+
+void cc_suspend_process(pid_t pid) {
+    kill(pid, SIGSTOP);
+    return;
+}
+    
 // A simple wrapper for the custom write_cap syscall.
-ssize_t cap_write(int fd, const void *buf) {
-    //return write(fd, buf, count);
+ssize_t write_cap(int fd, const void *buf) {
     return syscall(SYS_write_cap, fd, buf);
 }
 
 // A simple wrapper for the custom read_cap syscall.
-ssize_t cap_read(int fd, const void *buf) {
-    //return read(fd, buf, count);
+ssize_t read_cap(int fd, const void *buf) {
     return syscall(SYS_read_cap, fd, buf);
 }
 
@@ -172,8 +181,7 @@ static void cc_inc_cap_offset(cc_dcap* cap, uint32_t leap){
     cap->offset+=leap;
 }
 
-__attribute__((naked))
-    static inline uint8_t cc_read_i8_via_creg0(){
+static inline uint8_t cc_read_i8_via_creg0(){
         uint8_t data=0;
         asm volatile (
             ".word 0x02200d20\n\t"  //cldg8 x9, [cr0] (operand_1) 
@@ -186,7 +194,6 @@ __attribute__((naked))
         return data;
 }
 
-__attribute__((naked))
 static inline void cc_write_i8_via_creg0(uint8_t data){
     asm volatile (
         "and x9, %0, #0xFF\n\t" // Extract the least significant byte from x9
@@ -215,7 +222,7 @@ static uint8_t cc_load_creg0_read_i8_data(cc_dcap cap){
 static void cc_load_creg0_write_i8_data(cc_dcap cap, uint8_t data){
     cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
-        "and x9, %0, #0xFF\n\t" // Extract the least significant byte from x9
+        "and x9, %0, #0xFF\n\t" // Extract the least significant byte to x9
         ".word 0x02300d20\n\t"     //cstg8 x9, [cr0] (operand_1) 
         :   
         : "r" (data)
@@ -224,7 +231,6 @@ static void cc_load_creg0_write_i8_data(cc_dcap cap, uint8_t data){
     return;
 }
 
-__attribute__((naked))
 static inline uint16_t cc_read_i16_via_creg0(){
     uint16_t data;
     asm volatile (
@@ -236,11 +242,11 @@ static inline uint16_t cc_read_i16_via_creg0(){
     );
     return data;
 }
-__attribute__((naked))
+
 static inline void cc_write_i16_data_via_creg0(uint16_t data){
 
     asm volatile (
-        "and x9, %0, #0xFFFF\n\t" // Extract the least significant byte from x9
+        "and x9, %0, #0xFFFF\n\t" // Extract the least significant byte to x9
         ".word 0x02300920\n\t"     //cstg16 x9, [cr0] (operand_1) 
         :   
         : "r" (data)
@@ -265,7 +271,7 @@ static uint16_t cc_load_creg0_read_i16_data(cc_dcap cap){
 static void cc_load_creg0_write_i16_data(cc_dcap cap, uint16_t data){
     cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
-        "and x9, %0, #0xFFFF\n\t" // Extract the least significant byte from x9
+        "and x9, %0, #0xFFFF\n\t" // Extract the least significant byte to x9
         ".word 0x02300920\n\t"     //cstg16 x9, [cr0] (operand_1) 
         :   
         : "r" (data)
@@ -274,7 +280,6 @@ static void cc_load_creg0_write_i16_data(cc_dcap cap, uint16_t data){
     return;
 }
 
-__attribute__((naked))
 static inline uint32_t cc_read_i32_data_via_creg0(){
     uint32_t data;
     asm volatile (
@@ -286,10 +291,10 @@ static inline uint32_t cc_read_i32_data_via_creg0(){
     );
     return data;
 }
-__attribute__((naked))
+
 static inline void cc_write_i32_data_via_creg0(uint32_t data){
     asm volatile (
-        "and x9, %0, #0xFFFFFFFF\n\t" // Extract the least significant byte from x9
+        "and x9, %0, #0xFFFFFFFF\n\t" // Extract the least significant byte to x9
         ".word 0x02300520\n\t"     //cstg x9, [cr0] (operand_1) 
         :   
         : "r" (data)
@@ -314,7 +319,7 @@ static uint32_t cc_load_creg0_read_i32_data(cc_dcap cap){
 static void cc_load_creg0_write_i32_data(cc_dcap cap, uint32_t data){
     cc_load_ver_cap_to_creg0(&cap);
     asm volatile (
-        "and x9, %0, #0xFFFFFFFF\n\t" // Extract the least significant byte from x9
+        "and x9, %0, #0xFFFFFFFF\n\t" // Extract the least significant byte to x9
         ".word 0x02300520\n\t"     //cstg x9, [cr0] (operand_1) 
         :   
         : "r" (data)
@@ -324,7 +329,6 @@ static void cc_load_creg0_write_i32_data(cc_dcap cap, uint32_t data){
 }
 
 
-__attribute__((naked))
 static inline uint64_t cc_read_i64_via_creg0(){
     uint64_t data=0;
     asm volatile (
@@ -337,7 +341,6 @@ static inline uint64_t cc_read_i64_via_creg0(){
     return data;
 }
 
-__attribute__((naked))
 static inline void cc_write_i64_via_creg0(uint64_t data){
     asm volatile (
         "mov x9, %0\n\t"          // move data variable to x9
@@ -374,7 +377,34 @@ static void cc_load_creg0_write_i64_data(cc_dcap cap, uint64_t data){
     return;
 }
 
+static uint8_t* cc_memcpy_i8_asm_new(void* dst, cc_dcap src, size_t count) {
+    cc_dcap cap;
+    uint8_t* dest = (uint8_t*)dst;
+    if (count == 0) return dst;
+    
+    cc_load_ver_cap_to_creg0(&src);
+
+    asm volatile(
+        "mov x10, %[dst_ptr]\n\t"    // Load dst into x10 (using operand name)
+        "mov x11, %[cnt]\n\t"        // Load count into x11
+        "mov x12, #0\n\t"            // Initialize iterator
+        "1:\n\t"
+        ".word 0x02200d20\n\t"       // cldg8 x9, [cr0] 
+        ".word 0x03c00001\n\t"       // cincoffset cr0, #1 
+        "strb w9, [x10]\n\t"         // Store byte to [x10]
+        "add x10, x10, #1\n\t"       // Increment dst
+        "add x12, x12, #1\n\t"       // Increment iterator
+        "cmp x12, x11\n\t"
+        "b.lt 1b\n\t"
+        : 
+        : [dst_ptr] "r" (dst), [cnt] "r" (count)          // %1: count is input
+        : "x9", "x10", "x11", "x12", "cc", "memory"
+    );
+    return dst;
+
+}
 static uint8_t* cc_memcpy_i8_asm(void* dst, cc_dcap src, size_t count) {
+    cc_dcap cap;
     uint8_t* dest = (uint8_t*)dst;
     if (count == 0) return dst;
     
@@ -382,46 +412,73 @@ static uint8_t* cc_memcpy_i8_asm(void* dst, cc_dcap src, size_t count) {
     dest[0] = cc_load_creg0_read_i8_data(src);
 
     if (count <= 1) return dst;
-
-    asm volatile (
-        "mov x9, #1\n\t"               // Initialize offset (start from index 1)
-        "1:\n\t"                       // Loop start
-        ".word 0x02f00c09\n\t"         // cmanip cr0[1]/offset, R, x9\n\t" 
-        "add x9, x9, #1\n\t"           // Increment offset
-        ".word 0x02f00809\n\t"         //"cmanip cr0[1]/offset, W, x9\n\t" 
-        ".word 0x02200d40\n\t"         //"cldg8 x10, [cr0]\n\t"         // Load byte from capability register
-        "strb w10, [%[dest], x9]\n\t"  // Store byte to destination (offset x9)
-        "subs %[count], %[count], #1\n\t" // Decrement counter
-        "b.ne 1b\n\t"                  // Branch if not zero
-        : [dest] "+r" (dest), [count] "+r" (count)
+    
+    asm volatile(
+        "mov x10, %[dst_ptr]\n\t"    // Load dst into x10 (using operand name)
+        "mov x11, %[cnt]\n\t"        // Load count into x11
+        "add x10, x10, #1\n\t"       // Increment dst address
+        "mov x12, #1\n\t"            // Initialize iterator
+        "1:\n\t"
+        ".word 0x02200d20\n\t"       // cldg8 x9, [cr0] 
+        ".word 0x03c00001\n\t"       // cincoffset cr0, #1 
+        "strb w9, [x10]\n\t"         // Store byte to [x10]
+        "add x10, x10, #1\n\t"       // Increment dst
+        "add x12, x12, #1\n\t"       // Increment iterator
+        "cmp x12, x11\n\t"
+        "b.lt 1b\n\t"
         : 
-        : "x9", "x10", "memory"
+        : [dst_ptr] "r" (dst), [cnt] "r" (count)          // %1: count is input
+        : "x9", "x10", "x11", "x12", "cc", "memory"
     );
+    return dst;
+}
+
+static uint8_t* ncc_memcpy_i8_asm(void* dst, void* src, size_t count) {
+    uint8_t* dest = (uint8_t*)dst;
+    uint8_t* source = (uint8_t*)src;
+
+    if (count == 0) return dst;
+    
+    // Handle first byte outside the loop
+    dest[0] = source[0];
+
+    if (count <= 1) return dst;
+
+    asm volatile(
+        "mov x10, %[dst_ptr]\n\t"    // Load dst into x10
+        "mov x11, %[src_ptr]\n\t"    // Load src into x11
+        "mov x12, %[cnt]\n\t"        // Load count into x12
+        "add x10, x10, #1\n\t"       // Increment dst address
+        "add x11, x11, #1\n\t"       // Increment src address
+        "mov x13, #1\n\t"            // Initialize iterator
+        "1:\n\t"
+        "ldrb w9, [x11]\n\t"         // Load byte from [src] into w9
+        "strb w9, [x10]\n\t"         // Store byte to [dst]
+        "add x10, x10, #1\n\t"       // Increment dst pointer
+        "add x11, x11, #1\n\t"       // Increment src pointer
+        "add x13, x13, #1\n\t"       // Increment iterator
+        "cmp x13, x12\n\t"
+        "b.lt 1b\n\t"                // Loop if i < count
+        : 
+        : [dst_ptr] "r" (dst), [src_ptr] "r" (src), [cnt] "r" (count)
+        : "x9", "x10", "x11", "x12", "x13", "cc", "memory"
+    );
+
     return dst;
 }
 
 static uint8_t* cc_memcpy_i8_dbg(char* dst, cc_dcap src, size_t count) {
     uint64_t src_addr;
-    dst[0] = cc_load_creg0_read_i8_data(src);
-    printf("memcpy_i8: dest:0x%lx\n", &dst[0]);
-
-
-    for (int i = 1; i < count; i++) {
-        asm volatile (
-            ".word 0x02f0040a\n\t"      // cmanip cr0[0]/perms_base, R, x10
-            "lsl x10, x10, #16\n\t"
-            "lsr x10, x10, #16\n\t"
-            ".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
-            "add x9, x9, #1\n\t"
-            "add x10, x10, x9\n\t"
-            ".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
-            : "=r" (src_addr)
-            : 
-            : "x9","x10","memory"
-        );
+    cc_load_ver_cap_to_creg0(&src);
+    for (int i = 0; i < count; i++) {
         dst[i] = cc_read_i8_via_creg0();
-        //printf("memcpy_i8: address copy dst:0x%lx\n", &dest[i]);
-        //printf("memcpy_i8: address copy src:0x%lx\n", src_addr);
+        if (i % 100 == 0) {
+            printf("memcpy_i8: address copy dst:%p\n", &dst[i]);
+            printf("memcpy_i8: address copy src:%p\n", (void*)(src_addr+i));
+        }
+        asm volatile (
+            ".word 0x03c00001\n\t"       // cincoffset cr0, #1 
+        );
     }
     return dst;
 }
@@ -432,9 +489,11 @@ static uint8_t* cc_memcpy_i8(void* dst, cc_dcap src, size_t count) {
     dest[0] = cc_load_creg0_read_i8_data(src);
     for (int i = 1; i < count; i++) {
         asm volatile (
-            ".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
-            "add x9, x9, #1\n\t"
-            ".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
+            //".word 0x02f00c09\n\t"      // cmanip cr0[1]/offset, R, x9
+            //"add x9, x9, #1\n\t"
+            //".word 0x02f00809\n\t"      // cmanip cr0[1]/offset, W, x9
+            ".word 0x03c00001\n\t"         //"cincoffset cr0, #1
+
         );
         dest[i] = cc_read_i8_via_creg0();
     }
@@ -451,7 +510,6 @@ static uint8_t* cc_memcpy_unoptimised(void* dst, cc_dcap src, size_t count) {
     return dst;
 }
 
-__attribute__((naked))
 static int cc_dcall(){ 
     asm volatile (
         // Reserve 256 bytes on the stack
@@ -529,7 +587,6 @@ static int cc_dcall(){
     );
 }
 
-__attribute__((naked))
 static int cc_dret(){ 
    asm volatile(
         ".word 0x3e00000\n\t"      // dret
@@ -537,7 +594,7 @@ static int cc_dret(){
      );
 }
 
-void wait_for_call_via_loop(void){
+void cc_wait_for_call_via_loop(void){
     while(1) {
         sleep(1);  // Wait for calls
     }
