@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
         buffer[i] = 'a' + (rand() % ('z' - 'a' + 1));
         //buffer[i] = 'a' + (i % 27);
     }
-    buffer[total_size-1]=0;
+    buffer[total_size-1]='\0';
     // At this point, the entire data is ready in memory.
 
     // Now write the entire buffer in one syscall call.

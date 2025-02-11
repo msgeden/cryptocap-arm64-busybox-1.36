@@ -53,20 +53,13 @@ int main(int argc, char *argv[]) {
         buffer[i] = 'a' + (rand() % ('z' - 'a' + 1));
         //buffer[i] = 'a' + (i % 27);
     }
-    buffer[total_size-1]=0;
+    buffer[total_size-1]='\0';
 
     //send the cap for str
     cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(buffer, 0, total_size, true);
     //printf("Sender: ");
     //cc_print_cap(sent_cap_str);
 
-    // Allocate a contiguous buffer for the entire data.
-    start_t = clock();
-    char *local_copy = malloc(total_size);
-    cc_memcpy_i8_asm(local_copy, sent_cap_str, total_size);
-    end_t = clock();
-    printf("\nTotal time (s) of a single local copy (%.2f MB) via cap-based pipe:\t %.4f\n", (double)total_size/(1024*1024),total_t);
- 
     start_t = clock();
     //MAC to be signed by kernel within our custom write_cap function
     write_cap(STDOUT_FILENO, &sent_cap_str);

@@ -19,6 +19,7 @@
 #define PIPE_SIZE 1024
 
 size_t KB_size = 1024;
+size_t MB_size = 1024*1024;
 
 typedef enum capPermFlags {
     READ = 1,

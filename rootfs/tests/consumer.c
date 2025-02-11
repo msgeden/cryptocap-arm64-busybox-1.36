@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
         if (memcmp(data + i, pattern, pattern_size) == 0)
             occurrences++;
     }
-    printf("Found %llu occurrences of pattern \"%s\" in %llu bytes of data.\n",
+    printf("Found %llu occurrences of pattern \"%s\" in %lu bytes of data.\n",
            occurrences, pattern, total_size);
 
     free(data);

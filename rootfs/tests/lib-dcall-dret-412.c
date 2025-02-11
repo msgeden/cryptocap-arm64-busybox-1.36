@@ -10,16 +10,16 @@ __attribute__((naked))
 void lib1_add(void)      
 {
     
-    asm volatile (
-    //     ".word 0x02200120\n\t"  //cldg x9, [cr0] (operand_1) 
-    //     "str x9, %0\n\t"          // Store x9 into memory at address of a
-    //    ".word 0x02200141\n\t" //cldg x10, [cr1] (operand_2)
-    //     "str x10, %1\n\t"          // Store x10 into memory at address of a
-         "add x0, x9, x10\n\t"
-    //     :
-    //     : "m" (app_operand1), "m" (app_operand2)   // Output operands for x9 and x10
-    //     :"x9","x10"
-    );
+    // asm volatile (
+    // //     ".word 0x02200120\n\t"  //cldg x9, [cr0] (operand_1) 
+    // //     "str x9, %0\n\t"          // Store x9 into memory at address of a
+    // //    ".word 0x02200141\n\t" //cldg x10, [cr1] (operand_2)
+    // //     "str x10, %1\n\t"          // Store x10 into memory at address of a
+    //      "add x0, x9, x10\n\t"
+    // //     :
+    // //     : "m" (app_operand1), "m" (app_operand2)   // Output operands for x9 and x10
+    // //     :"x9","x10"
+    // );
 
     //printf("Lib1: Lib1 is called\n");
    
