@@ -30,7 +30,7 @@ double total_t;
 int main(int argc, char *argv[]) {
     // Default total size: 100 MB.
     if (argc > 1) {
-        total_size = atol(argv[1])*KB_size;
+        total_size = atol(argv[1])*MB_size;
         if (total_size == 0) {
             fprintf(stderr, "Invalid size provided.\n");
             return EXIT_FAILURE;
@@ -56,20 +56,20 @@ int main(int argc, char *argv[]) {
     buffer[total_size-1]='\0';
 
     //send the cap for str
-    cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(buffer, 0, total_size, true);
+    cc_dcap sent_cap_str=cc_create_signed_cap_on_CR0(buffer, 0, total_size, true);
     //printf("Sender: ");
     //cc_print_cap(sent_cap_str);
-
+    pid_t pid= getpid();
+    write(STDOUT_FILENO, &pid, sizeof(pid_t));
     start_t = clock();
     //MAC to be signed by kernel within our custom write_cap function
-    write_cap(STDOUT_FILENO, &sent_cap_str);
+    cc_write_cap(STDOUT_FILENO, &sent_cap_str);
     //write(STDOUT_FILENO, &sent_cap_str, sizeof(cc_dcap));
     end_t = clock();
     total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
     //printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size),total_t);
 
-    
-    sleep(25);
+    cc_suspend_process(pid);
     free(buffer);
     return EXIT_SUCCESS;
 }

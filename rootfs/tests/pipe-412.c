@@ -62,7 +62,7 @@ int main(int argc, char *argv[])  {
         read(pipefd2[0], &recv_cap_stack_int, sizeof(cc_dcap));
         printf("Child: "); cc_print_cap(recv_cap_stack_int);
 
-        uint64_t recv_stack_int = cc_load_creg0_read_i64_data(recv_cap_stack_int);
+        uint64_t recv_stack_int = cc_load_CR0_read_i64_data(recv_cap_stack_int);
         printf("Child: Integer received via piped-cap: %ld\n", recv_stack_int);
 
         //receive the cap for heap string
@@ -107,15 +107,15 @@ int main(int argc, char *argv[])  {
         
         int_via_cap++;
         //send the cap for int
-        cc_dcap sent_cap_int=cc_create_signed_cap_on_creg0(&int_via_cap, 0, sizeof(uint64_t), false);
+        cc_dcap sent_cap_int=cc_create_signed_cap_on_CR0(&int_via_cap, 0, sizeof(uint64_t), false);
         printf("Parent: "); cc_print_cap(sent_cap_int);
         write(pipefd2[1], &sent_cap_int, sizeof(cc_dcap));
 
-        uint64_t local_stack_int = cc_load_creg0_read_i64_data(sent_cap_int);
+        uint64_t local_stack_int = cc_load_CR0_read_i64_data(sent_cap_int);
         printf("Parent: Integer received via local-cap: %ld\n", local_stack_int);
 
         //send the cap for str
-        cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(str, 0, total_size, false);
+        cc_dcap sent_cap_str=cc_create_signed_cap_on_CR0(str, 0, total_size, false);
         printf("Parent: "); cc_print_cap(sent_cap_str);
        
         start_t_p = clock();

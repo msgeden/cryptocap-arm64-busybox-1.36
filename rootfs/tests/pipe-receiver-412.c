@@ -33,19 +33,19 @@ int main() {
     syscall(SYS_read_cap, STDIN_FILENO, &recv_cap_int);
     printf("Receiver: "); cc_print_cap(recv_cap_int);
 
-    uint64_t recv_int_val = cc_load_creg0_read_i64_data(recv_cap_int);
+    uint64_t recv_int_val = cc_load_CR0_read_i64_data(recv_cap_int);
     printf("Receiver: Integer received via cross-domain cap: %ld\n", recv_int_val);
 
-    recv_int_val = cc_read_i64_via_creg0();
+    recv_int_val = cc_read_i64_via_CR0();
     printf("Receiver: Integer received via cross-domain cap: %ld\n", recv_int_val);
 
-    cc_load_creg0_write_i64_data(recv_cap_int,54);
+    cc_load_CR0_write_i64_data(recv_cap_int,54);
     
-    recv_int_val = cc_load_creg0_read_i64_data(recv_cap_int);
+    recv_int_val = cc_load_CR0_read_i64_data(recv_cap_int);
     printf("Receiver: Integer modified via cross-domain cap: %ld\n", recv_int_val);
 
-    cc_store_cap_from_creg0(&recv_cap_int);
-    cc_load_ver_cap_to_creg0(&recv_cap_int);
+    cc_store_cap_from_CR0(&recv_cap_int);
+    cc_load_ver_cap_to_CR0(&recv_cap_int);
 
     //IMPORTANT: there has to be a copy for call by reference functions unless all pointers are capabilities
     char* recv_str=malloc(recv_cap_str.size+1);

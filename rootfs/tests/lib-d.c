@@ -55,7 +55,7 @@ int main(void)
             perror("malloc");
             return EXIT_FAILURE;
         }
-        printf("Lib: HEAP START: %p\n", heap_stack);        
+        printf("Lib: heap stack: %p\n", heap_stack);        
 
         // share the necessary info with the application process  
         dcapcl lib_cap;
@@ -93,6 +93,7 @@ int main(void)
         write(pipe_fd[1], &lib_cap, sizeof(dcapcl));
 
         //wait_for_call_via_loop();   
+        _
         wait(NULL);
         
         free(heap_stack);

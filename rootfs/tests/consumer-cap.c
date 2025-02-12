@@ -35,20 +35,21 @@ int main(int argc, char *argv[]) {
 
     size_t pattern_size = strlen(pattern);
 
+
+    pid_t producer_pid=0;
+    read(STDIN_FILENO, &producer_pid, sizeof(pid_t));
     cc_dcap recv_cap_str;
-    read_cap(STDIN_FILENO, &recv_cap_str);
+    cc_read_cap(STDIN_FILENO, &recv_cap_str);
 
     // Allocate a contiguous buffer for the entire data.
     total_size=recv_cap_str.size;
     start_t = clock();
     char *data = malloc(total_size);
-    cc_memcpy_i8_asm_new(data, recv_cap_str, total_size);
+    cc_memcpy_i8_asm(data, recv_cap_str, total_size);
     end_t = clock();
+    printf("Receiver: data:%s ", data);
     total_t = (double)(end_t - start_t)/CLOCKS_PER_SEC;
-    printf("\nTotal time (s) of a single copy (%.2f MB) via cap-based pipe:\t %.4f\n", (double)total_size/(1024*1024),total_t);
-    data[total_size] = '\0';
-
-    //printf("Receiver: data:%s ", data);
+    printf("\nTotal time (s) of single copy (%.2f MB) via cap-based pipe:\t %.4f\n", (double)total_size/MB_size,total_t);
 
     // Now that the complete data is in memory, search for the pattern.
     unsigned long long occurrences = 0;
@@ -57,9 +58,10 @@ int main(int argc, char *argv[]) {
             occurrences++;
     }
     
-    printf("Found %llu occurrences of pattern \"%s\" in %lu bytes of data.\n",
-           occurrences, pattern, total_size);
+    printf("Found %llu occurrences of pattern \"%s\" in %lu MB of data.\n",
+           occurrences, pattern, total_size/MB_size);
 
+    cc_resume_process(producer_pid);
     free(data);
     return EXIT_SUCCESS;
 

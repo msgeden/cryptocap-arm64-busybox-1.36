@@ -83,18 +83,18 @@ int main(int argc, char *argv[]) {
         //printf("Sender: %s", message_via_cap);
 
 
-        cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(message_via_cap, 0, strlen(message_via_cap) + 1, true);
+        cc_dcap sent_cap_str=cc_create_signed_cap_on_CR0(message_via_cap, 0, strlen(message_via_cap) + 1, true);
         printf("Sender: ");
         cc_print_cap(sent_cap_str);
 
         //send the cap for int
-        cc_dcap sent_cap_int=cc_create_signed_cap_on_creg0(&int_via_cap, 0, sizeof(uint64_t), true);
+        cc_dcap sent_cap_int=cc_create_signed_cap_on_CR0(&int_via_cap, 0, sizeof(uint64_t), true);
         printf("Sender: ");
         cc_print_cap(sent_cap_int);
         
         int_via_cap++;
         
-        uint64_t int_value = cc_load_creg0_read_i64_data(sent_cap_int);
+        uint64_t int_value = cc_load_CR0_read_i64_data(sent_cap_int);
         printf("Sender: Integer received via intra-domain cap: %ld\n", int_value);
 
         //MAC to be signed by kernel within our custom write_cap function

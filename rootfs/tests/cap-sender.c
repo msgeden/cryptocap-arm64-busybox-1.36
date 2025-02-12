@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
         //printf("Sender: %s", message_via_cap);
 
 
-        cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(message_via_cap, 0, total_size, false);
+        cc_dcap sent_cap_str=cc_create_signed_cap_on_CR0(message_via_cap, 0, total_size, false);
         printf("Sender: "); cc_print_cap(sent_cap_str);
 
         // start_t = clock();

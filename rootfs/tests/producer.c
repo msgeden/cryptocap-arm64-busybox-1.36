@@ -28,14 +28,14 @@ clock_t start_t, end_t;
 double total_t;
 
 int main(int argc, char *argv[]) {
-    // Default total size: 100 MB.
     if (argc > 1) {
-        total_size = atol(argv[1])*KB_size;
+        total_size = atol(argv[1])*MB_size;
         if (total_size == 0) {
             fprintf(stderr, "Invalid size provided.\n");
             return EXIT_FAILURE;
         }
     }
+
     // Allocate a single contiguous block of memory for the entire data.
     char *buffer = malloc(total_size);
     if (!buffer) {
@@ -52,8 +52,8 @@ int main(int argc, char *argv[]) {
     }
     buffer[total_size-1]='\0';
     // At this point, the entire data is ready in memory.
-
-    // Now write the entire buffer in one syscall call.
+    pid_t pid= getpid();
+    write(STDOUT_FILENO, &pid, sizeof(pid_t));
     write(STDOUT_FILENO, &total_size, sizeof(size_t));
     start_t = clock();
     write(STDOUT_FILENO, buffer, total_size);
@@ -61,8 +61,8 @@ int main(int argc, char *argv[]) {
     total_t = (double)(end_t - start_t);
     write(STDOUT_FILENO, &total_t, sizeof(double));
 
-    //printf("\nTotal time (s) of data write (%d MB):\t %f\n", (total_size),total_t/CLOCKS_PER_SEC);
-    sleep(25);
+    cc_suspend_process(pid);
+
     free(buffer);
     return EXIT_SUCCESS;
 }

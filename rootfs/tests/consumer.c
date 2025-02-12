@@ -37,20 +37,19 @@ int main(int argc, char *argv[]) {
         pattern=argv[1];
 
     size_t pattern_size = strlen(pattern);
-
-
-
+    pid_t producer_pid=0;
+    read(STDIN_FILENO, &producer_pid, sizeof(pid_t));
     read(STDIN_FILENO, &total_size, sizeof(size_t));
     // Allocate a contiguous buffer for the entire data.
     char *data = malloc(total_size);
     start_t = clock();
     read(STDIN_FILENO, data, total_size);
-    //printf("Receiver: data:%s ", data);
     end_t = clock();
+    printf("Receiver: data:%s ", data);
     read(STDIN_FILENO, &sender_t, sizeof(double));
     total_t = (double)(end_t - start_t+sender_t)/CLOCKS_PER_SEC;
 
-    printf("\nTotal time (s) of two copies (%.2f MB) via traditional pipe:\t %.4f\n", (double)total_size/(1024*1024),total_t);
+    printf("\nTotal time (s) of two copies (%.2f MB) via traditional pipe:\t %.4f\n", (double)total_size/MB_size,total_t);
 
     // Now that the complete data is in memory, search for the pattern.
     unsigned long long occurrences = 0;
@@ -58,11 +57,10 @@ int main(int argc, char *argv[]) {
         if (memcmp(data + i, pattern, pattern_size) == 0)
             occurrences++;
     }
-    printf("Found %llu occurrences of pattern \"%s\" in %lu bytes of data.\n",
-           occurrences, pattern, total_size);
+    printf("Found %llu occurrences of pattern \"%s\" in %lu MB of data.\n",
+           occurrences, pattern, total_size/MB_size);
 
     free(data);
+    cc_resume_process(producer_pid);
     return EXIT_SUCCESS;
-
-
 }

@@ -70,7 +70,7 @@ int main(int argc, char *argv[])  {
         buffer[total_size - 1] = '\0'; // Null-terminate the string.
 
 
-        cc_dcap sent_cap_str=cc_create_signed_cap_on_creg0(buffer, 0, total_size, false);
+        cc_dcap sent_cap_str=cc_create_signed_cap_on_CR0(buffer, 0, total_size, false);
         printf("Sender:\t\t");
         cc_print_cap(sent_cap_str);
         

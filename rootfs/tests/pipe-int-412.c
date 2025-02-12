@@ -32,7 +32,7 @@ int main()  {
         read(pipefd[0], &recv_cap_stack_int, sizeof(cc_dcap));
         printf("Child: "); cc_print_cap(recv_cap_stack_int);
 
-        int recv_stack_int = cc_load_creg0_read_i64_data(recv_cap_stack_int);
+        int recv_stack_int = cc_load_CR0_read_i64_data(recv_cap_stack_int);
         printf("Child: Integer received via piped-cap: %d\n", recv_stack_int);
 
         close(pipefd[0]);
@@ -43,11 +43,11 @@ int main()  {
         
         int_via_cap=99;
         //send the cap for int
-        cc_dcap sent_cap_int=cc_create_signed_cap_on_creg0(&int_via_cap, 0, sizeof(uint64_t), false);
+        cc_dcap sent_cap_int=cc_create_signed_cap_on_CR0(&int_via_cap, 0, sizeof(uint64_t), false);
         printf("Parent: "); cc_print_cap(sent_cap_int);
         write(pipefd[1], &sent_cap_int, sizeof(cc_dcap));
 
-        uint64_t local_stack_int = cc_load_creg0_read_i64_data(sent_cap_int);
+        uint64_t local_stack_int = cc_load_CR0_read_i64_data(sent_cap_int);
         printf("Parent: Integer received via local-cap: %ld\n", local_stack_int);
 
         close(pipefd[1]);
